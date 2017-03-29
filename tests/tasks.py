@@ -4,6 +4,7 @@ from celery import Celery
 
 backend = os.getenv('CELERY_BACKEND_URL', 'amqp')
 celery = Celery('tasks', backend=backend)
+celery.conf.task_queue_max_priority = 10
 
 celery.conf.update(
     CELERY_RESULT_SERIALIZER='json',

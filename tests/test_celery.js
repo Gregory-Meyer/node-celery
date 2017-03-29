@@ -81,7 +81,7 @@ describe('celery functional tests', function() {
     });
 
     describe('basic task calls', function() {
-        it('should call a task without error', function(done) {
+        it('should call a task without error (amqp)', function(done) {
             var client = celery.createClient(conf_amqp),
                 add = client.createTask('tasks.add');
 
@@ -98,7 +98,24 @@ describe('celery functional tests', function() {
             });
         });
 
-        it('should call a task without error', function(done) {
+        it('should call a task without error (redis)', function(done) {
+            var client = celery.createClient(conf_redis),
+                add = client.createTask('tasks.add');
+
+            client.on('connect', function() {
+                add.call([1, 2]);
+
+                setTimeout(function() {
+                    client.end();
+                }, 100);
+            });
+
+            client.once('end', function() {
+                done();
+            });
+        });
+
+        it('should call a prioritized task without error (amqp)', function(done) {
             var client = celery.createClient(conf_redis),
                 add = client.createTask('tasks.add');
 
