@@ -220,7 +220,7 @@ describe('celery functional tests', function() {
 
             client.on('connect', function() {
                 var past = new Date(new Date()
-                    .getTime() - 60 * 60 * 1000),
+                        .getTime() - 60 * 60 * 1000),
                     result = time.call(null, null, {
                         expires: past
                     });
