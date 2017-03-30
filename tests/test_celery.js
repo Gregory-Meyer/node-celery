@@ -116,11 +116,11 @@ describe('celery functional tests', function() {
         });
 
         it('should call a prioritized task without error (amqp)', function(done) {
-            var client = celery.createClient(conf_redis),
+            var client = celery.createClient(conf_amqp),
                 add = client.createTask('tasks.add');
 
             client.on('connect', function() {
-                add.call([1, 2]);
+                add.call([1, 2], {}, { priority: 5 });
 
                 setTimeout(function() {
                     client.end();
@@ -219,8 +219,7 @@ describe('celery functional tests', function() {
                 time = client.createTask('tasks.time');
 
             client.on('connect', function() {
-                var past = new Date(new Date()
-                        .getTime() - 60 * 60 * 1000),
+                var past = new Date(new Date().getTime() - 60 * 60 * 1000),
                     result = time.call(null, null, {
                         expires: past
                     });
