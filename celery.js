@@ -167,7 +167,11 @@ function RedisBackend(conf) {
 
     self.get = function(taskid, cb) {
         backend_ex.get(key_prefix + taskid, cb);
-    }
+    };
+
+    self.del = function(taskid, cb) {
+        backend_ex.del(key_prefix + taskid, cb);
+    };
 
     return self;
 }
@@ -369,6 +373,22 @@ Result.prototype.get = function(callback) {
         }
         return self.result;
     }
+};
+
+
+Result.prototype.del = function(callback) {
+  var self = this;
+  if (callback && self.result === null) {
+    self.client.backend.del(self.taskid, function(err, reply) {
+      self.result = JSON.parse(reply);
+      callback(self.result);
+    });
+  } else {
+    if (callback) {
+      callback(self.result);
+    }
+    return self.result;
+  }
 };
 
 exports.createClient = function(config, callback) {
