@@ -365,7 +365,6 @@ function Result(taskid, client) {
                     }
                     self.result = message;
                     q.unsubscribe(ctag);
-                    q.unbind(self.client.conf.RESULT_EXCHANGE, '#');
                     debug('Emiting ready event...');
                     self.emit('ready', message);
                     debug('Emiting task status event...');
