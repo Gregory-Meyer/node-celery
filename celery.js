@@ -3,7 +3,8 @@ var url = require('url'),
     amqp = require('amqp'),
     redis = require('redis'),
     events = require('events'),
-    uuid = require('uuid');
+    uuid = require('uuid'),
+    async = require('async');
 
 var createMessage = require('./protocol').createMessage;
 
@@ -12,7 +13,7 @@ var debug = process.env.NODE_CELERY_DEBUG === '1' ? console.info : function() {}
 var supportedProtocols = ['amqp', 'amqps', 'redis'];
 
 function getProtocol(kind, options) {
-    const protocol = url.parse(options.url).protocol.slice(0, -1);
+    let protocol = url.parse(options.url).protocol.slice(0, -1);
     if (protocol === 'amqps') {
         protocol = 'amqp';
     }
@@ -143,10 +144,12 @@ function RedisBackend(conf) {
     var key_prefix = 'celery-task-meta-';
 
     self.redis.on('connect', function() {
-        debug('Backend connected...');
-        // on redis result..
         self.redis.on('pmessage', function(pattern, channel, data) {
-            backend_ex.expire(channel, conf.TASK_RESULT_EXPIRES / 1000);
+            if (conf.CELERY_TASK_RESULT_DURABLE) {
+                backend_ex.expire(channel, conf.TASK_RESULT_EXPIRES / 1000);
+            } else {
+                backend_ex.expire(channel, 0);
+            }
             var message = JSON.parse(data);
             var taskid = channel.slice(key_prefix.length);
             if (self.results.hasOwnProperty(taskid)) {
@@ -180,51 +183,64 @@ util.inherits(RedisBackend, events.EventEmitter);
 function Client(conf) {
     var self = this;
     self.ready = false;
-
+    self.backendReady = false;
+    self.brokerReady = false;
     self.conf = new Configuration(conf);
 
-    // backend
-    if (self.conf.backend_type === 'redis') {
-        self.backend = new RedisBackend(self.conf);
-        self.backend.on('message', function(msg) {
-            self.emit('message', msg);
-        });
-    } else if (self.conf.backend_type === 'amqp') {
-        self.backend = amqp.createConnection(self.conf.RESULT_BACKEND_OPTIONS, {
-            defaultExchangeName: self.conf.DEFAULT_EXCHANGE
-        });
-    }
+    async.parallel([
+        function backendConnection(parallelCallback) {
+            // backend
+            debug('Connecting to backend...');
 
-    self.backend.on('error', function(err) {
-        self.emit('error', err);
-    });
+            if (self.conf.backend_type === 'redis') {
+                self.backend = new RedisBackend(self.conf);
+                self.backend.on('message', function(msg) {
+                    self.emit('message', msg);
+                });
+            } else if (self.conf.backend_type === 'amqp') {
+                self.backend = amqp.createConnection(self.conf.RESULT_BACKEND_OPTIONS, {
+                    defaultExchangeName: self.conf.DEFAULT_EXCHANGE
+                });
+            }
 
-    // backend ready...
-    self.backend.on('ready', function() {
-        debug('Connecting to broker...');
+            self.backend.on('error', function(err) {
+                self.emit('error', err);
+            });
 
-        if (self.conf.broker_type === 'redis') {
-            self.broker = new RedisBroker(self.conf);
-        } else if (self.conf.broker_type === 'amqp') {
-            self.broker = amqp.createConnection(self.conf.BROKER_OPTIONS, {
-                defaultExchangeName: self.conf.DEFAULT_EXCHANGE
+            self.backend.once('ready', function() {
+                debug('Backend connected...');
+                self.backendReady = true;
+                parallelCallback(null);
+            })
+        }, function brokerConnection(parallelCallback) {
+            if (self.conf.broker_type === 'redis') {
+                self.broker = new RedisBroker(self.conf);
+            } else if (self.conf.broker_type === 'amqp') {
+                debug('Connecting to amqp broker');
+                self.broker = amqp.createConnection(self.conf.BROKER_OPTIONS, {
+                    defaultExchangeName: self.conf.DEFAULT_EXCHANGE
+                });
+            }
+
+            self.broker.on('error', function(err) {
+                self.emit('error', err);
+            });
+
+            self.broker.on('end', function() {
+                self.emit('end');
+                debug('Broker connection end...');
+            });
+
+            self.broker.once('ready', function() {
+                debug('Broker connected...');
+                self.brokerReady = true;
+                parallelCallback(null);
             });
         }
-
-        self.broker.on('error', function(err) {
-            self.emit('error', err);
-        });
-
-        self.broker.on('end', function() {
-            self.emit('end');
-        });
-
-        self.broker.on('ready', function() {
-            debug('Broker connected...');
-            self.ready = true;
-            debug('Emiting connect event...');
-            self.emit('connect');
-        });
+    ], function(err) {
+        self.ready = true;
+        debug('Emitting connect event...');
+        self.emit('connect');
     });
 }
 
@@ -349,12 +365,14 @@ function Result(taskid, client) {
                     }
                     self.result = message;
                     q.unsubscribe(ctag);
+                    q.unbind(self.client.conf.RESULT_EXCHANGE, '#');
                     debug('Emiting ready event...');
                     self.emit('ready', message);
                     debug('Emiting task status event...');
                     self.emit(message.status.toLowerCase(), message);
                 }).addCallback(function(ok) { ctag = ok.consumerTag; });
-            });
+            }
+        );
     }
 }
 
