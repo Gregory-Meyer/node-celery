@@ -145,7 +145,7 @@ function RedisBackend(conf) {
 
     self.redis.on('connect', function() {
         self.redis.on('pmessage', function(pattern, channel, data) {
-            if (conf.CELERY_TASK_RESULT_DURABLE) {
+            if (conf.TASK_RESULT_DURABLE) {
                 backend_ex.expire(channel, conf.TASK_RESULT_EXPIRES / 1000);
             } else {
                 backend_ex.expire(channel, 0);
