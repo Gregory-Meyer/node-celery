@@ -121,7 +121,6 @@ util.inherits(RedisBroker, events.EventEmitter);
 function RedisBackend(conf) {
     var self = this;
     self.redis = redis.createClient(conf.RESULT_BACKEND_OPTIONS);
-
     var backend_ex = self.redis.duplicate();
 
     self.redis.on('error', function(err) {
@@ -129,6 +128,14 @@ function RedisBackend(conf) {
     });
 
     self.redis.on('end', function() {
+        self.emit('end');
+    });
+
+    backend_ex.on('error', function(err) {
+        self.emit('error', err);
+    });
+
+    backend_ex.on('end', function() {
         self.emit('end');
     });
 
@@ -210,8 +217,16 @@ function Client(conf) {
             self.backend.once('ready', function() {
                 debug('Backend connected...');
                 self.backendReady = true;
+
+                self.backend.on('ready', function() {
+                    self.backendReady = true;
+                    if(self.brokerReady) {
+                        self.emit('connect')
+                    }
+                });
                 parallelCallback(null);
             })
+
         }, function brokerConnection(parallelCallback) {
             if (self.conf.broker_type === 'redis') {
                 self.broker = new RedisBroker(self.conf);
@@ -234,6 +249,12 @@ function Client(conf) {
             self.broker.once('ready', function() {
                 debug('Broker connected...');
                 self.brokerReady = true;
+                self.broker.on('ready', function() {
+                    self.brokerReady = true;
+                    if(self.backendReady) {
+                        self.emit('connect');
+                    }
+                })
                 parallelCallback(null);
             });
         }
