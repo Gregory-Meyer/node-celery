@@ -1,18 +1,13 @@
-var assert = require('assert'),
-    uuid = require('uuid'),
-    createMessage = require('../protocol')
-        .createMessage;
+let assert = require('assert');
+
+import { Message } from '../../lib/Message';
 
 
-function msg(task, args, kwargs, options, id) {
-    id = id || 'id';
-    return JSON.parse(createMessage(task, args, kwargs, options, id));
-}
-
-describe('protocol', function() {
-    describe('#createMessage', function() {
+describe('Message', function() {
+    describe('constructor', function() {
         it('should create a message with default args', function() {
-            assert.deepEqual(msg("foo"), {
+            let msg = new Message("foo", undefined, undefined, undefined, "id");
+            assert.deepEqual(msg.get(), {
                 task: "foo",
                 args: [],
                 kwargs: {},
@@ -21,15 +16,17 @@ describe('protocol', function() {
         });
 
         it('should create a message with the given args', function() {
-            assert.deepEqual(msg("foo", [1, 2]), {
+            let msg = new Message("foo", [1, 2], undefined, undefined, "id");
+            assert.deepEqual(msg.get(), {
                 task: "foo",
                 args: [1, 2],
                 kwargs: {},
                 id: "id"
             });
-            assert.deepEqual(msg("foo", null, {
+            msg = new Message("foo", null, {
                 bar: 3
-            }), {
+            }, null, "id");
+            assert.deepEqual(msg.get(), {
                 task: "foo",
                 args: [],
                 kwargs: {
@@ -37,7 +34,8 @@ describe('protocol', function() {
                 },
                 id: "id"
             });
-            assert.deepEqual(msg("foo", null, null, null, "bar"), {
+            msg = new Message("foo", null, null, null, "bar");
+            assert.deepEqual(msg.get(), {
                 task: "foo",
                 args: [],
                 kwargs: {},
@@ -46,9 +44,10 @@ describe('protocol', function() {
         });
 
         it('should send the expiry as UTC', function() {
-            assert.deepEqual(msg("foo", null, null, {
+            let msg = new Message("foo", null, null, {
                 expires: Date.parse('Mon Nov 30 2015 10:03:37 GMT+0000 (UTC)')
-            }), {
+            }, "id");
+            assert.deepEqual(msg.get(), {
                 task: "foo",
                 args: [],
                 kwargs: {},

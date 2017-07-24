@@ -7,17 +7,22 @@
     "test": "mocha tests"
   },
   "dependencies": {
-    "amqp": "*",
-    "async": "^2.5.0",
-    "redis": "*",
-    "uuid": "^3.0.0"
+    "amqplib": "0.5.1",
+    "async": "2.5.0",
+    "bluebird": "3.5.0",
+    "lodash.shuffle": "4.2.0",
+    "redis": "2.6.5",
+    "uuid": "3.1.0"
   },
   "repository": {
     "type": "git",
     "url": "git://github.com/mher/node-celery.git"
   },
   "devDependencies": {
-    "mocha": "*"
+    "assert": "^1.4.1",
+    "babel-core": "^6.25.0",
+    "babel-preset-env": "1.6.0",
+    "mocha": "^3.4.2"
   },
   "engine": "node >= 0.8.2",
   "main": "celery.js"

@@ -1,5 +1,5 @@
-var celery = require('../celery'),
-    assert = require('assert');
+let celery = require('../../celery');
+let assert = require('assert');
 
 // $ docker-compose up -d
 
@@ -23,7 +23,7 @@ describe('celery functional tests', function() {
         it('should create a valid amqp client without error', function(done) {
             var client = celery.createClient(conf_amqp);
 
-            assert.equal(client.conf.BROKER_OPTIONS.url, 'amqp://');
+            assert.equal(client.conf.BROKER_OPTIONS.url, ['amqp://']);
             assert.equal(client.conf.BROKER_OPTIONS.heartbeat, 580);
             assert.equal(client.conf.broker_type, 'amqp');
 
