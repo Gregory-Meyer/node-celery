@@ -217,6 +217,15 @@ function Client(conf) {
 
         self.broker.on('end', function() {
             self.emit('end');
+            self.broker = amqp.createConnection(self.conf.BROKER_OPTIONS, {
+                defaultExchangeName: self.conf.DEFAULT_EXCHANGE
+            });
+            self.broker.on('ready', function() {
+                debug('Broker connected...');
+                self.ready = true;
+                debug('Emiting connect event...');
+                self.emit('connect');
+            });
         });
 
         self.broker.on('ready', function() {
